@@ -1,5 +1,18 @@
 elation.require(['graph.external.d3', 'ui.base'], function() {
   elation.requireCSS('graph.force');
+
+  /** 
+   * Force-directed graph
+   *
+   * @class force
+   * @augments elation.ui.base
+   * @memberof elation.graph
+   * @alias elation.graph.force
+   *
+   * @param {array}    nodes
+   * @param {array}    links
+   * @param {object}   graphargs
+   */
   elation.component.add('graph.force', function() {
     this.defaultcontainer = {tag: 'div'};
     this.init = function() {
@@ -9,7 +22,7 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
       this.scale = 1;
 
       this.create();
-      this.updategraphargs();
+      this.updategraphargs(this.args.graphargs);
     }
     this.create = function() {
       var width = 960, height = 500;

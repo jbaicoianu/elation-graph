@@ -19,22 +19,31 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
       this.nodes = this.args.nodes || [];
       this.links = this.args.links || [];
       this.translate = [0, 0];
-      this.scale = 1;
+      this.scale = this.args.scale || 1;
+      this.graphargs = this.args.graphargs || {};
+
+      if (this.args.classname) {
+        this.addclass(this.args.classname);
+      }
 
       this.create();
-      this.updategraphargs(this.args.graphargs);
+      this.updategraphargs(this.graphargs);
     }
     this.create = function() {
-      var width = 960, height = 500;
+      var width = this.graphargs.width || 960, 
+          height = this.graphargs.height || 500;
+
+      this.width = width;
+      this.height = height;
+
       this.graph = d3.layout.force()
-        .size([width, height])
-        .on("tick", elation.bind(this, this.tick));
+        .size([width, height]);
 
       this.svg = d3.select(this.container).append("svg")
           .attr("width", width)
           .attr("height", height)
 
-      this.zoom = d3.behavior.zoom().scaleExtent([.01, 10]).on("zoom", elation.bind(this, this.handlezoom));
+      this.zoom = d3.behavior.zoom().scaleExtent([.5, 100]).on("zoom", elation.bind(this, this.handlezoom));
       this.zoom.scale(this.scale);
       var g = this.svg.append("g")
             .call(this.zoom);
@@ -64,35 +73,55 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
     }
     // Color leaf nodes orange, and packages white or blue.
     this.color = function(d) {
-      return d._edges ? "#3182bd" : d.edges ? "#c6dbef" : "#fd8d3c";
+      return d.color ? '#' + d.color : d._edges ? "#3182bd" : d.edges ? "#c6dbef" : "#fd8d3c";
     }
     this.tick = function() {
       var zoom = function(p, d) {
         var n = (p * this.scale) + this.translate[d];
-        return Math.round(parseFloat(n) * 1000) / 1000; 
+        return n;//Math.round(parseFloat(n) * 1000) / 1000; 
       }.bind(this);
 
       var scale = this.scale;
-      this.link.attr("x1", function(d) { return d.source.x; })
-          .attr("y1", function(d) { return d.source.y; })
-          .attr("x2", function(d) { return d.target.x; })
-          .attr("y2", function(d) { return d.target.y; })
-          .style("stroke-width", (1 / scale) + 'px');
+      if (this.link) {
+        this.link.attr("x1", function(d) { return d.source.x; })
+            .attr("y1", function(d) { return d.source.y; })
+            .attr("x2", function(d) { return d.target.x; })
+            .attr("y2", function(d) { return d.target.y; })
+            .style("stroke-width", (1 / scale) + 'px')
+            .style("stroke", function(d) { return (!d.source.disabled && !d.target.disabled ? "#fff" : "#666"); });
+      }
 
-      this.node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ") scale(" + (1.0 / scale) + ")"; });
+      if (this.node) {
+        var width = this.width,
+            height = this.height,
+            translate = this.translate,
+            margin = 75;
+        this.node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ") scale(" + (1.0 / scale) + ")"; })
+                 //.attr("display", function(d) { var m = margin * scale; var off = [(d.x * scale) + translate[0], (d.y * scale) + translate[1]];  var inbox = (off[0] > -m && off[1] > -m && off[0] < width + m && off[1] < height + m);  return (inbox ? 'block' : 'none'); });
+                 .attr("class", function(d) { var classes = ['node']; var m = margin * scale; var off = [(d.x * scale) + translate[0], (d.y * scale) + translate[1]];  var inbox = (off[0] > -m && off[1] > -m && off[0] < width + m && off[1] < height + m);  if (!inbox) classes.push('state_hidden'); if (d.disabled) classes.push('state_disabled'); if (d.selected) classes.push('state_selected'); if (d.hover) classes.push('state_hover'); return classes.join(' '); });
+        this.circles.attr("r", function(d) { return (Math.pow(d.children.length + 1, .25)) * this.scale * 10; }.bind(this))
+        this.texts.attr("font-size", function(d) { var size = ((Math.pow(d.children.length + 1, .25)) / (.4 / scale));  size + "px" })
+                  .attr("display", function(d) { var size = ((Math.pow(d.children.length + 1, .25)) / (.4 / scale));  return (size > 8 ? "block" : "none"); })
+      }
 
     }
 
     this.updategraphargs = function(graphargs) {
       var defaults = {
+/*
         linkStrength: .1, 
+        linkDistance: 200, 
         friction: .7, 
         distance: 20, 
         charge: function(n) { var c = -20 * (n.children.length + 1); if (n.name == 'ui.base') console.log(n.name, c); return c;}, 
         //charge: -60,
+        chargeDistance: Infinity,
         gravity: .1, 
         theta: .8, 
-        alpha: .1
+        alpha: .1,
+*/
+        width: 960,
+        height: 500
       };
       var realargs = {};
       if (this.currentargs) {
@@ -102,28 +131,46 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
       }
       elation.utils.merge(graphargs, realargs);
       this.graph
+/*
           .linkStrength(realargs.linkStrength)
+          .linkDistance(realargs.linkDistance)
           .friction(realargs.friction)
           .distance(realargs.distance)
           .charge(realargs.charge)
-          //.chargeDistance(realargs.chargeDistance)
+          .chargeDistance(realargs.chargeDistance)
           .gravity(realargs.gravity)
           .theta(realargs.theta)
-          .alpha(realargs.alpha);
+          .alpha(realargs.alpha)
+*/
+          .friction(.5)
+          .charge(-240)
+          .size([realargs.width, realargs.height])
+
+      console.log('REAL ARGS:', realargs);
 
       this.currentargs = realargs;
       this.refresh();
     }
 
     this.render = function() {
+      var offset = [0, 0];
+      if (this.args.center) {
+        offset = [this.width/2, this.height/2];
+      }
+
+
       this.graphroot.attr("transform", "translate(" + this.translate + ") scale(" + this.scale + ")");
       this.graph.resume();
     }
 
-    this.update = function(data) {
-      var nodedata = this.flatten(data),
-          nodes = nodedata[0],
-          links = nodedata[1];
+    this.update = function(data, links) {
+      if (links === undefined) {
+        var nodedata = this.flatten(data),
+            nodes = nodedata[0],
+            links = nodedata[1];
+      } else {
+        var nodes = data;
+      }
 
       this.graph
           .nodes(nodes)
@@ -131,32 +178,39 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
       this.graph.start();
 
       this.drag = this.graph.drag()
-            .on("dragstart", function(n) { n.fixed = true; this.dragging = true; }.bind(this))
-            .on("dragend", function(n) { this.dragging = false; }.bind(this));
+            .on("dragstart", function(n) { n.fixed = true; this.dragging = true; this.dragmoved = false; }.bind(this))
+            .on("dragend", function(n) { n.fixed = false; this.dragging = false; }.bind(this));
 
       var link = this.graphroot.selectAll(".link"),
           node = this.graphroot.selectAll(".node");
 
       this.node = node = node.data(nodes, function(d) { return d.id; }).style("fill", this.color);
-
       // Exit any old nodes.
       node.exit().remove();
 
       // Enter any new nodes.
       var g = node.enter().append("g")
-          .attr("class", "node");
+          .attr("class", "node")
+          .attr("id", function(n) { return "node_" + n.id; });
       g.append("circle")
           .attr("cx", 0)//function(d) { return d.x; })
           .attr("cy", 0)//function(d) { return d.y; })
-          .attr("r", function(d) { return Math.sqrt(d.children.length + 1) * 4.5; })
+          .attr("r", function(d) { return (Math.pow(d.children.length + 1, .25)) / this.scale; }.bind(this))
           .style("fill", this.color);
 
+      var textfunc = this.graphargs.textfunc || function(d) { return d.name; };
       g.append("text")
           //.attr("dx", "-3em")
           .attr("dy", "1em")
-          .text(function(d) { return d.name; });
+          .text(textfunc);
 
       g.call(this.drag);
+
+      // move node to the end of the dom list when it's moused over, for proper z-indexing
+      this.node.on("mouseover", function(n) { if (!this.dragging) { n.fixed = true; var g = document.getElementById('node_' + n.id); g.parentNode.appendChild(g); } }.bind(this))
+               .on("mousemove", function(n) { if (this.dragging) this.dragmoved = true; }.bind(this))
+               .on("mouseout", function(n) { if (!this.dragging) { n.fixed = n.selected || false; } }.bind(this))
+               .on("click", function(n) { if (!this.dragging && !this.dragmoved) { elation.events.fire({type: 'node_select', element: n}); } }.bind(this));
 
       // Update the links…
       this.link = link = link.data(links, function(d) { return d.source.id + "_" + d.target.id; });
@@ -167,6 +221,16 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
       // Enter any new links.
       link.enter().insert("line", ".node")
           .attr("class", "link")
+
+      this.circles = this.node.select("circle");
+      this.texts = this.node.select("text");
+
+      // Pre-run the graph 20 ticks
+      var preticks = this.graphargs.preticks || 20;
+      for (var i = 0; i < preticks; i++) {
+        this.graph.tick();
+      }
+      this.graph.on("tick", elation.bind(this, this.tick));
 
       this.refresh();
     }
@@ -182,7 +246,12 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
               seenlinks[linkid] = true;
               links.push({source: node, target: n});
             }
-            recurse(n);
+            try { 
+              recurse(n);
+            } catch (e) {
+              console.log('ERROR hacking too much time', n);
+              return;
+            }
           });
         }
         if (!node.id) node.id = ++i;
@@ -190,6 +259,7 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
       }
 
       recurse(root, true);
+      console.log('node is', root);
       return [nodes, links];
     }
 
@@ -198,11 +268,20 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
         this.scale = d3.event.scale;
         this.translate = d3.event.translate;
         this.refresh();
+        this.graph.resume();
       } else {
         this.zoom.translate(this.translate);
         this.zoom.scale(this.scale);
       }
     }
+    this.setsize = function(size) {
+      this.width = size[0];
+      this.height = size[1];
 
+      this.graph.size(size);
+
+      this.svg.attr("width", size[0])
+              .attr("height", size[1]);
+    }
   }, elation.ui.base);
 });

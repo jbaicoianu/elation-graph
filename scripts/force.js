@@ -43,10 +43,12 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
           .attr("width", width)
           .attr("height", height)
 
-      this.zoom = d3.behavior.zoom().scaleExtent([.5, 100]).on("zoom", elation.bind(this, this.handlezoom));
-      this.zoom.scale(this.scale);
-      var g = this.svg.append("g")
-            .call(this.zoom);
+      var g = this.svg.append("g");
+      if (this.args.interactive) {
+        this.zoom = d3.behavior.zoom().scaleExtent([.1, 100]).on("zoom", elation.bind(this, this.handlezoom));
+        this.zoom.scale(this.scale);
+        g.call(this.zoom);
+      }
       this.overlay = g.append("rect")
           .attr("class", "overlay")
           .attr("width", width)
@@ -76,11 +78,11 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
       return d.color ? '#' + d.color : d._edges ? "#3182bd" : d.edges ? "#c6dbef" : "#fd8d3c";
     }
     this.tick = function() {
-      var zoom = function(p, d) {
-        var n = (p * this.scale) + this.translate[d];
-        return n;//Math.round(parseFloat(n) * 1000) / 1000; 
-      }.bind(this);
-
+      if (this.args.interactive) {
+        this.rendersvg();
+      }
+    }
+    this.rendersvg = function() {
       var scale = this.scale;
       if (this.link) {
         this.link.attr("x1", function(d) { return d.source.x; })
@@ -88,22 +90,28 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
             .attr("x2", function(d) { return d.target.x; })
             .attr("y2", function(d) { return d.target.y; })
             .style("stroke-width", (1 / scale) + 'px')
-            .style("stroke", function(d) { return (!d.source.disabled && !d.target.disabled ? "#fff" : "#666"); });
+            .attr("class", function(d) { var classes = ['link']; if (d.source.disabled || d.target.disabled) classes.push('state_disabled'); if (d.source.hover || d.target.hover) classes.push('state_hover'); return classes.join(' '); });
       }
-
+console.log('ticky');
       if (this.node) {
         var width = this.width,
             height = this.height,
             translate = this.translate,
             margin = 75;
+/*
         this.node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ") scale(" + (1.0 / scale) + ")"; })
                  //.attr("display", function(d) { var m = margin * scale; var off = [(d.x * scale) + translate[0], (d.y * scale) + translate[1]];  var inbox = (off[0] > -m && off[1] > -m && off[0] < width + m && off[1] < height + m);  return (inbox ? 'block' : 'none'); });
                  .attr("class", function(d) { var classes = ['node']; var m = margin * scale; var off = [(d.x * scale) + translate[0], (d.y * scale) + translate[1]];  var inbox = (off[0] > -m && off[1] > -m && off[0] < width + m && off[1] < height + m);  if (!inbox) classes.push('state_hidden'); if (d.disabled) classes.push('state_disabled'); if (d.selected) classes.push('state_selected'); if (d.hover) classes.push('state_hover'); return classes.join(' '); });
-        this.circles.attr("r", function(d) { return (Math.pow(d.children.length + 1, .25)) * this.scale * 10; }.bind(this))
+        this.circles.attr("r", function(d) { return (Math.pow(d.children.length + 1, .25)) * this.scale * 5; }.bind(this))
         this.texts.attr("font-size", function(d) { var size = ((Math.pow(d.children.length + 1, .25)) / (.4 / scale));  size + "px" })
                   .attr("display", function(d) { var size = ((Math.pow(d.children.length + 1, .25)) / (.4 / scale));  return (size > 8 ? "block" : "none"); })
+*/
       }
-
+      if (this.groups) {
+        this.groups.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
+                   .attr("class", function(d) { var classes = ['node']; var m = margin * scale; var off = [(d.x * scale) + translate[0], (d.y * scale) + translate[1]];  var inbox = (off[0] > -m && off[1] > -m && off[0] < width + m && off[1] < height + m);  if (!inbox) classes.push('state_hidden'); if (d.disabled) classes.push('state_disabled'); if (d.selected) classes.push('state_selected'); if (d.hover) classes.push('state_hover'); return classes.join(' '); });
+        this.texts.attr("display", function(d) { var size = ((Math.pow(d.children.length + 1, .25)) / (.4 / scale));  return (size > 8 && size < 32 ? "block" : "none"); })
+      }
     }
 
     this.updategraphargs = function(graphargs) {
@@ -142,7 +150,8 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
           .theta(realargs.theta)
           .alpha(realargs.alpha)
 */
-          .friction(.5)
+          .gravity(.05)
+          .friction(.6)
           .charge(-240)
           .size([realargs.width, realargs.height])
 
@@ -160,7 +169,10 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
 
 
       this.graphroot.attr("transform", "translate(" + this.translate + ") scale(" + this.scale + ")");
-      this.graph.resume();
+      //this.graph.resume();
+      this.graph.start();
+      this.graph.tick();
+      this.graph.stop();
     }
 
     this.update = function(data, links) {
@@ -179,7 +191,7 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
 
       this.drag = this.graph.drag()
             .on("dragstart", function(n) { n.fixed = true; this.dragging = true; this.dragmoved = false; }.bind(this))
-            .on("dragend", function(n) { n.fixed = false; this.dragging = false; }.bind(this));
+            .on("dragend", function(n) { n.fixed = true; this.dragging = false; }.bind(this));
 
       var link = this.graphroot.selectAll(".link"),
           node = this.graphroot.selectAll(".node");
@@ -195,22 +207,26 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
       g.append("circle")
           .attr("cx", 0)//function(d) { return d.x; })
           .attr("cy", 0)//function(d) { return d.y; })
-          .attr("r", function(d) { return (Math.pow(d.children.length + 1, .25)) / this.scale; }.bind(this))
+          //.attr("r", function(d) { return (Math.pow(d.children.length, 1)) / this.scale; }.bind(this))
+          .attr("r", function(d) { return Math.pow(d.children.length + 2, .5) * 2; }.bind(this))
           .style("fill", this.color);
 
       var textfunc = this.graphargs.textfunc || function(d) { return d.name; };
+
       g.append("text")
+          .attr("font-size", function(d) { var size = (Math.pow(d.children.length + 1, .25)) * 4; return size + "px"; })
           //.attr("dx", "-3em")
           .attr("dy", "1em")
           .text(textfunc);
 
-      g.call(this.drag);
+      //g.call(this.drag);
 
       // move node to the end of the dom list when it's moused over, for proper z-indexing
-      this.node.on("mouseover", function(n) { if (!this.dragging) { n.fixed = true; var g = document.getElementById('node_' + n.id); g.parentNode.appendChild(g); } }.bind(this))
+      this.node.on("mouseover", function(n) { if (!this.dragging) { n.hover = true; n.fixed = true; var g = document.getElementById('node_' + n.id); g.parentNode.appendChild(g); } this.refresh(); }.bind(this))
                .on("mousemove", function(n) { if (this.dragging) this.dragmoved = true; }.bind(this))
-               .on("mouseout", function(n) { if (!this.dragging) { n.fixed = n.selected || false; } }.bind(this))
+               .on("mouseout", function(n) { n.hover = false; if (!this.dragging) { n.fixed = n.selected || true; } this.refresh(); }.bind(this))
                .on("click", function(n) { if (!this.dragging && !this.dragmoved) { elation.events.fire({type: 'node_select', element: n}); } }.bind(this));
+      this.groups = g;
 
       // Update the links…
       this.link = link = link.data(links, function(d) { return d.source.id + "_" + d.target.id; });
@@ -224,7 +240,6 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
 
       this.circles = this.node.select("circle");
       this.texts = this.node.select("text");
-
       // Pre-run the graph 20 ticks
       var preticks = this.graphargs.preticks || 20;
       for (var i = 0; i < preticks; i++) {
@@ -268,10 +283,11 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
         this.scale = d3.event.scale;
         this.translate = d3.event.translate;
         this.refresh();
-        this.graph.resume();
+        //this.graph.resume();
       } else {
         this.zoom.translate(this.translate);
         this.zoom.scale(this.scale);
+        this.refresh();
       }
     }
     this.setsize = function(size) {

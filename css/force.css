@@ -4,7 +4,7 @@
   stroke-width: 1px;
 }
 node.state_hidden {
-  display: none;
+  xdisplay: anone;
 }
 node.state_disabled {
   opacity: .5;

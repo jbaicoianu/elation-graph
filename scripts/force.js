@@ -84,6 +84,10 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
     }
     this.rendersvg = function() {
       var scale = this.scale;
+      if (this.width != this.container.offsetWidth || this.height != this.container.offsetHeight) {
+        //this.setsize([this.container.offsetWidth - 16, this.container.offsetHeight - 16]);
+      }
+
       if (this.link) {
         this.link.attr("x1", function(d) { return d.source.x; })
             .attr("y1", function(d) { return d.source.y; })
@@ -113,7 +117,6 @@ console.log('ticky');
         this.texts.attr("display", function(d) { var size = ((Math.pow(d.children.length + 1, .25)) / (.4 / scale));  return (size > 8 && size < 32 ? "block" : "none"); })
       }
     }
-
     this.updategraphargs = function(graphargs) {
       var defaults = {
 /*
@@ -153,6 +156,8 @@ console.log('ticky');
           .gravity(.05)
           .friction(.6)
           .charge(-240)
+          .alpha(.9)
+          //.chargeDistance(1000)
           .size([realargs.width, realargs.height])
 
       console.log('REAL ARGS:', realargs);
@@ -162,12 +167,6 @@ console.log('ticky');
     }
 
     this.render = function() {
-      var offset = [0, 0];
-      if (this.args.center) {
-        offset = [this.width/2, this.height/2];
-      }
-
-
       this.graphroot.attr("transform", "translate(" + this.translate + ") scale(" + this.scale + ")");
       //this.graph.resume();
       this.graph.start();

@@ -1,7 +1,7 @@
-.node {
+.node circle {
   cursor: pointer;
   stroke: #3182bd;
-  stroke-width: 1.5px;
+  stroke-width: 1px;
 }
 node.state_hidden {
   display: none;
@@ -20,7 +20,7 @@ node.state_disabled {
   text-align: center;
   width: 6em;
   stroke: #3182bd;
-  fill: #3182bd;
+  fill: none;
   text-shadow: 0 0 .1em rgba(0,0,0,.9);
   text-anchor: middle;
 }
@@ -31,10 +31,18 @@ node.state_disabled {
 }
 .link {
   fill: none;
-  stroke: #9ecae1;
+  stroke: #fff;
   stroke-width: 1px;
   xmarker-end: url(#link-arrow);
   marker-units: stroke-width;
+  opacity: .1;
+}
+.link.state_disabled {
+  stroke: #666;
+}
+.link.state_hover {
+  stroke: #fff;
+  opacity: .5;
 }
 #link-arrow path {
   stroke: #000;

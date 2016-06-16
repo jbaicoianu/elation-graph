@@ -1,4 +1,4 @@
-elation.require(['ui.base', 'engine.engine', 'engine.things.player', 'engine.things.light', 'physics.cyclone'], function() {
+elation.require(['ui.base', 'engine.engine', 'engine.things.player', 'engine.things.light_directional', 'physics.cyclone'], function() {
   /*
     force3d.nodes(nodes);
     force3d.links(links);
@@ -145,7 +145,7 @@ console.timeEnd('force3d_physics_step');
         name: 'default',
         things: {
           'sun': {
-            type: 'light',
+            type: 'light_directional',
             properties: {
               type: 'directional',
               position: [-5, 12, 8]
@@ -327,7 +327,7 @@ console.log('new graph link geo');
 
       linegeo.verticesNeedUpdate = true;
       linegeo.computeBoundingSphere();
-
+      this.refresh();
     }
   }, elation.engine.things.generic);
 });

@@ -96,7 +96,6 @@ elation.require(['graph.external.d3', 'ui.base'], function() {
             .style("stroke-width", (1 / scale) + 'px')
             .attr("class", function(d) { var classes = ['link']; if (d.source.disabled || d.target.disabled) classes.push('state_disabled'); if (d.source.hover || d.target.hover) classes.push('state_hover'); return classes.join(' '); });
       }
-console.log('ticky');
       if (this.node) {
         var width = this.width,
             height = this.height,

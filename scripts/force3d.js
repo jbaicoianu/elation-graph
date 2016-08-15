@@ -56,7 +56,8 @@ console.time('force3d_update');
         } else {
           this.nodecache[i].setPosition(node.position);
         }
-        nodemap[node.url] = this.nodecache[i];;
+        nodemap[node.url] = this.nodecache[i];
+        //this.nodecache[i].material.color.setHex(0xffffff * Math.random());
       }
 
       for (var i = 0; i < this.linklist.length; i++) {
@@ -202,7 +203,7 @@ console.timeEnd('force3d_physics_step');
       elation.events.remove(this.graph, 'graph_update,graph_tick', this);
     }
     this.update = function() {
-      if (this.graphthing) {
+      if (this.graph && this.graphthing) {
 if (!this.updated) {
         this.graphthing.setData(this.graph.nodelist, this.graph.linklist);
         this.updated = true;
@@ -219,6 +220,11 @@ if (!this.updated) {
     this.graph_tick = function() {
       this.update();
     }
+    this.updateColors = function() {
+      if (this.graphthing) {
+        this.graphthing.updateColors();
+      }
+    }
   }, elation.engine.client);
   elation.component.add('engine.things.graph_force3d_viewer', function() {
     this.postinit = function() {
@@ -234,24 +240,29 @@ if (!this.updated) {
     this.setData = function(nodes, links) {
       //console.log('NEW GRAPH DATA', nodes, links);
       var geo = this.geometry;
+      this.nodes = nodes;
+      this.links = links;
       if (!geo || geo.attributes.position.count != nodes.length) {
-console.log('new geo');
         if (this.points) this.objects['3d'].remove(this.points);
         this.pointmap = {};
 
         geo = this.geometry = new THREE.BufferGeometry();
         var positions = new Float32Array( nodes.length * 3 );
         var colors = new Float32Array( nodes.length * 3 );
+        this.colors = colors;
         geo.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
         geo.addAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
-
         geo.attributes.color.dynamic = true;
+
+        var opacity = new Float32Array( nodes.length );
+        //geo.addAttribute( 'opacity', new THREE.BufferAttribute( colors, 1 ) );
+        //geo.attributes.opacity.dynamic = true;
+
 
         var mat = new THREE.PointsMaterial({color: 0xffffff, size: 0.475, vertexColors: true, transparent: true, opacity: .95, alphaTest: .2});
         var obj = new THREE.Points(geo, mat);
         this.points = obj;
         this.objects['3d'].add(obj);
-console.log('new graph node geo', nodes.length, geo.attributes.position.count);
       } else {
         var positions = geo.attributes.position;
         var colors = geo.attributes.color;
@@ -269,12 +280,15 @@ console.log('new graph node geo', nodes.length, geo.attributes.position.count);
           //var pos = new THREE.Vector3(room.x / 10, room.y / 10, room.z / 10);
           room.position = pos;
           if (!room.position) {
-console.log('new position??', room);
             room.position = new THREE.Vector3(elation.utils.any(room.x, i * 2), elation.utils.any(room.y, Math.random() * 2 - 1), elation.utils.any(room.z, Math.random() * 2 - 1)); 
           }
           //var color = new THREE.Color(parseInt(room.color, 16));
           //var color = new THREE.Color(0xff0000);
-          color.setHex(parseInt(room.color, 16));
+          if (room.disabled) {
+            color.setHex(0x333333);
+          } else {
+            color.setHex(parseInt(room.color, 16));
+          }
           //geo.vertices[i] = room.position;
           //geo.colors[i] = color;
           var pos = room.position.toArray();
@@ -295,7 +309,6 @@ console.log('new position??', room);
       if (changed) {
         geo.verticesNeedUpdate = true;
         geo.computeBoundingSphere();
-console.log('did a change');
       }
 
       var linkverts = [];
@@ -327,6 +340,25 @@ console.log('new graph link geo');
 
       linegeo.verticesNeedUpdate = true;
       linegeo.computeBoundingSphere();
+      this.refresh();
+    }
+    this.updateColors = function() {
+      var nodes = this.nodes;
+      var color = new THREE.Color();
+      for (var i = 0; i < nodes.length; i++) {
+        var idx = i * 3;
+        if (nodes[i].disabled) {
+          this.colors[idx    ] = 0.2;
+          this.colors[idx + 1] = 0.2;
+          this.colors[idx + 2] = 0.2;
+        } else {
+          color.setHex(parseInt(nodes[i].color, 16));
+          this.colors[idx    ] = color.r;
+          this.colors[idx + 1] = color.g;
+          this.colors[idx + 2] = color.b;
+        }
+      }
+      this.geometry.attributes.color.needsUpdate = true;
       this.refresh();
     }
   }, elation.engine.things.generic);
